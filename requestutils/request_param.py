@@ -34,7 +34,7 @@ class RequestParam(object):
 
     def bind(self, handler):
         '''
-        attach request parameter value to this parameter
+        attach request parameter value to this parameter using
         the value is looked up in the request parameters using the self.varname attribute
         '''
         try:
