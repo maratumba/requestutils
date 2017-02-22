@@ -39,8 +39,8 @@ class RequestParam(object):
         '''
         try:
             self.value = handler.get_argument(self.varname)
-        except:
-            self.value = None
+        except Exception:
+            self.value = self.default
         self.is_bound = True
 
     def validate(self):
@@ -53,10 +53,7 @@ class RequestParam(object):
             )
 
         if self.required is True and self.value is None:
-            if self.default is None:
-                raise validators.ValidatorError("Required parameter {varname} is missing".format(**self.__dict__))
-            else:
-                self.value = self.default
+            raise validators.ValidatorError("Required parameter {varname} is missing".format(**self.__dict__))
 
         for validator in self.validators:
             self.value = validator.check(self.value)
