@@ -35,9 +35,12 @@ class RequestParam(object):
     def bind(self, handler):
         '''
         attach request parameter value to this parameter
-        the value is looked up in the request parameters using the self.name attribute
+        the value is looked up in the request parameters using the self.varname attribute
         '''
-        self.value = handler.get_argument(self.varname)
+        try:
+            self.value = handler.get_argument(self.varname)
+        except:
+            self.value = None
         self.is_bound = True
 
     def validate(self):
