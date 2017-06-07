@@ -52,6 +52,8 @@ class ValidatorPostSmaller(object):
         self.description = description.format(**self.__dict__)
         self.error = error
 
+        self.type = None   # integer, string ...
+
     def __call__(self, request):
         return self.check(request)
 
@@ -78,6 +80,7 @@ class ValidatorInt(ValidatorBase):
 
         self.description = description
         self.error = error
+        self.type = 'integer'
 
     def check(self, param):
         try:
@@ -96,8 +99,10 @@ class ValidatorFloat(ValidatorBase):
                  error="Supplied parameter <{param}> is not a valid float value"
                  ):
 
+
         self.description = description
         self.error = error
+        self.type = 'float'
 
     def check(self, param):
         try:
@@ -115,12 +120,15 @@ class ValidatorNumberMin(ValidatorBase):
                  error="Supplied parameter <{param}> is less than minimum value of {minval}"
                  ):
 
+        self.internal_validators = [ValidatorFloat()]
         self.minval = minval
         self.description = description.format(**self.__dict__)
         self.error = error
+        self.type = 'float'
+
 
     def check(self, param):
-        param = ValidatorFloat().check(param)
+        param = self.internal_validators[0].check(param)
         if param < self.minval:
             raise self.getException(param)
         return param
@@ -134,12 +142,14 @@ class ValidatorNumberMax(ValidatorBase):
                  error="Supplied parameter <{param}> is greater than maximum value of {maxval}"
                  ):
 
+        self.internal_validators = [ValidatorFloat()]
         self.maxval = maxval
         self.description = description.format(**self.__dict__)
         self.error = error
+        self.type = 'float'
 
     def check(self, param):
-        param = ValidatorFloat().check(param)
+        param = self.internal_validators[0].check(param)
         if param > self.maxval:
             raise self.getException(param)
         return param
@@ -156,6 +166,7 @@ class ValidatorRegex(ValidatorBase):
         self.recompiled = re.compile(self.regex)
         self.description = description.format(**self.__dict__)
         self.error = error
+        self.type = 'string'
 
     def check(self, param):
         if self.recompiled.match(param) is None:
@@ -170,13 +181,13 @@ class ValidatorOR(ValidatorBase):
                  description="Validate if ANY of the conditions are met",
                  error="Supplied parameter <{param}> did not match any condition"
                  ):
-        self.validators = validators
+        self.internal_validators = validators
         self.description = description
         self.error = error
 
     def check(self, param):
         errors = []
-        for validator in self.validators:
+        for validator in self.internal_validators:
             try:
                 return validator.check(param)
             except ValidatorError as e:
@@ -193,12 +204,12 @@ class ValidatorAND(ValidatorBase):
                  description="Validate if ALL of the conditions are met",
                  error="Supplied parameter <{param}> did not match all conditions"
                  ):
-        self.validators = validators
+        self.internal_validators = validators
         self.description = description.format(self.__dict__)
         self.error = error
 
     def check(self, param):
-        for validator in self.validators:
+        for validator in self.internal_validators:
             param = validator.check(param)
 
         return param
@@ -214,7 +225,8 @@ class ValidatorNumberRange(ValidatorAND):
         self.maxval = maxval
         self.description = description.format(**self.__dict__)
         self.error = error
-        self.validators = [
+        self.type_tags = ['minval:{}'.format(minval), 'maxval:{}'.format(maxval)]
+        self.internal_validators = [
             ValidatorNumberMin(minval),
             ValidatorNumberMax(maxval)
         ]
@@ -229,6 +241,7 @@ class ValidatorEqual(ValidatorBase):
         self.equals = equals
         self.description = description.format(**self.__dict__)
         self.error = error
+        self.type = 'string'
 
     def check(self, param):
         if param == self.equals:
@@ -245,6 +258,8 @@ class ValidatorDateTime(ValidatorBase):
                  ):
         self.description = description
         self.error = error
+        self.type = 'string'
+        self.type_tags = ['datetime:ISO8601', 'tz:UTC']
 
     def check(self, param):
         try:
@@ -262,13 +277,13 @@ class ValidatorDateTimeMin(ValidatorBase):
                  error="Supplied parameter <{param}> is not a valid ISO8601 Date time after <{mindt}>"
                  ):
         self.mindt = mindt
-        self.validator_dt = ValidatorDateTime()
+        self.internal_validators = [ValidatorDateTime()]
         self.mindt_obj = self.validator_dt.check(mindt)
         self.description = description.format(**self.__dict__)
         self.error = error
 
     def check(self, param):
-        dt = self.validator_dt.check(param)
+        dt = self.internal_validators[0].check(param)
         if(dt < self.mindt_obj):
             raise self.getException(param)
         return dt
@@ -282,13 +297,13 @@ class ValidatorDateTimeMax(ValidatorBase):
                  error="Supplied parameter <{param}> is not a valid ISO8601 Date time before <{maxdt}>"
                  ):
         self.maxdt = maxdt
-        self.validator_dt = ValidatorDateTime()
+        self.internal_validators = [ValidatorDateTime()]
         self.maxdt_obj = self.validator_dt.check(maxdt)
         self.description = description.format(**self.__dict__)
         self.error = error
 
     def check(self, param):
-        dt = self.validator_dt.check(param)
+        dt = self.internal_validators[0].check(param)
         if(dt > self.maxdt_obj):
             raise self.getException(param)
         return dt
@@ -308,9 +323,9 @@ class ValidatorDateTimeRange(ValidatorBase):
         else:
             self.maxdt = maxdt
 
-        self.validator_dt = ValidatorDateTime()
-        self.mindt_obj = self.validator_dt.check(self.mindt)
-        self.maxdt_obj = self.validator_dt.check(self.maxdt)
+        self.internal_validators = [ValidatorDateTime()]
+        self.maxdt_obj = self.internal_validators[0].check(self.maxdt)
+        self.mindt_obj = self.internal_validators[0].check(self.mindt)
         if self.mindt_obj >= self.maxdt_obj:
             raise Exception('DateTimeRangeValidator initialized with bad data mindt: {mindt} and maxdt: {maxdt}'.format(self.__dict__))
 
@@ -318,7 +333,7 @@ class ValidatorDateTimeRange(ValidatorBase):
         self.error = error
 
     def check(self, param):
-        dt = self.validator_dt.check(param)
+        dt = self.internal_validators[0].check(param)
         if self.mindt_obj <= dt <= self.maxdt_obj:
             return dt
 
