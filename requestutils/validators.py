@@ -262,8 +262,11 @@ class ValidatorDateTime(ValidatorBase):
         self.type_tags = ['datetime:ISO8601', 'tz:UTC']
 
     def check(self, param):
+        date_format = "%Y-%m-%dT%H:%M:%S.%f"
+        if param[-1] == 'Z':
+            date_format = "%Y-%m-%dT%H:%M:%S.%fZ"
         try:
-            dt = datetime.datetime.strptime(param, "%Y-%m-%dT%H:%M:%S.%f")
+            dt = datetime.datetime.strptime(param, date_format)
         except ValueError:
             raise self.getException(param)
         return dt
